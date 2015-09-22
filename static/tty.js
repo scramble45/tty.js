@@ -13,9 +13,9 @@ var document = this.document
   , window = this
   , root
   , body
-  , h1
-  , open
-  , lights;
+  //, h1
+  //, open
+  //, lights;
 
 /**
  * Initial Document Title
@@ -69,29 +69,11 @@ tty.open = function() {
   tty.elements = {
     root: document.documentElement,
     body: document.body,
-    h1: document.getElementsByTagName('h1')[0],
-    open: document.getElementById('open'),
-    lights: document.getElementById('lights')
   };
 
   root = tty.elements.root;
   body = tty.elements.body;
-  h1 = tty.elements.h1;
-  open = tty.elements.open;
-  lights = tty.elements.lights;
-
-  if (open) {
-    on(open, 'click', function() {
-      new Window;
-    });
-  }
-
-  if (lights) {
-    on(lights, 'click', function() {
-      tty.toggleLights();
-    });
-  }
-
+ 
   tty.socket.on('connect', function() {
     tty.reset();
     tty.emit('connect');
@@ -164,6 +146,7 @@ tty.open = function() {
 
   tty.emit('load');
   tty.emit('open');
+
 };
 
 /**
@@ -180,16 +163,11 @@ tty.reset = function() {
   tty.terms = {};
 
   tty.emit('reset');
-};
 
-/**
- * Lights
- */
-
-tty.toggleLights = function() {
-  root.className = !root.className
-    ? 'dark'
-    : '';
+  (new tty.Window).on('open', function(){
+    var self = this;
+    on(self.element.querySelector('div.terminal'),'focus',function() { if (!self.minimize) self.maximize(); });
+  });
 };
 
 /**
@@ -202,35 +180,31 @@ function Window(socket) {
   EventEmitter.call(this);
 
   var el
-    , grip
     , bar
-    , button
+    , newButton
+    , closeButton
     , title;
 
   el = document.createElement('div');
   el.className = 'window';
 
-  grip = document.createElement('div');
-  grip.className = 'grip';
-
   bar = document.createElement('div');
   bar.className = 'bar';
 
-  button = document.createElement('div');
-  button.innerHTML = '~';
-  button.title = 'new/close';
-  button.className = 'tab';
+  newButton = document.createElement('div');
+  newButton.innerHTML = '\u2295';
+  newButton.title = 'New tab';
+  newButton.className = 'tab new';
 
-  title = document.createElement('div');
-  title.className = 'title';
-  title.innerHTML = '';
+  closeButton = document.createElement('div');
+  closeButton.innerHTML = '\u2297';
+  closeButton.title = 'Close';
+  closeButton.className = 'tab close';
 
   this.socket = socket || tty.socket;
   this.element = el;
-  this.grip = grip;
   this.bar = bar;
-  this.button = button;
-  this.title = title;
+  this.buttons = { 'new': newButton, 'close': closeButton };
 
   this.tabs = [];
   this.focused = null;
@@ -238,10 +212,9 @@ function Window(socket) {
   this.cols = Terminal.geometry[0];
   this.rows = Terminal.geometry[1];
 
-  el.appendChild(grip);
   el.appendChild(bar);
-  bar.appendChild(button);
-  bar.appendChild(title);
+  bar.appendChild(closeButton);
+  bar.appendChild(newButton);
   body.appendChild(el);
 
   tty.windows.push(this);
@@ -261,42 +234,18 @@ inherits(Window, EventEmitter);
 Window.prototype.bind = function() {
   var self = this
     , el = this.element
-    , bar = this.bar
-    , grip = this.grip
-    , button = this.button
+    , newButton = this.buttons.new
+    , closeButton = this.buttons.close
     , last = 0;
 
-  on(button, 'click', function(ev) {
-    if (ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) {
-      self.destroy();
-    } else {
-      self.createTab();
-    }
-    return cancel(ev);
+  on(newButton, 'click', function(ev) {
+    self.createTab();
   });
 
-  on(grip, 'mousedown', function(ev) {
-    self.focus();
-    self.resizing(ev);
-    return cancel(ev);
+  on(closeButton, 'click', function(ev) {
+    self.focused.destroy();
   });
 
-  on(el, 'mousedown', function(ev) {
-    if (ev.target !== el && ev.target !== bar) return;
-
-    self.focus();
-
-    cancel(ev);
-
-    if (new Date - last < 600) {
-      return self.maximize();
-    }
-    last = new Date;
-
-    self.drag(ev);
-
-    return cancel(ev);
-  });
 };
 
 Window.prototype.focus = function() {
@@ -333,105 +282,6 @@ Window.prototype.destroy = function() {
   this.emit('close');
 };
 
-Window.prototype.drag = function(ev) {
-  var self = this
-    , el = this.element;
-
-  if (this.minimize) return;
-
-  var drag = {
-    left: el.offsetLeft,
-    top: el.offsetTop,
-    pageX: ev.pageX,
-    pageY: ev.pageY
-  };
-
-  el.style.opacity = '0.60';
-  el.style.cursor = 'move';
-  root.style.cursor = 'move';
-
-  function move(ev) {
-    el.style.left =
-      (drag.left + ev.pageX - drag.pageX) + 'px';
-    el.style.top =
-      (drag.top + ev.pageY - drag.pageY) + 'px';
-  }
-
-  function up() {
-    el.style.opacity = '';
-    el.style.cursor = '';
-    root.style.cursor = '';
-
-    off(document, 'mousemove', move);
-    off(document, 'mouseup', up);
-
-    var ev = {
-      left: el.style.left.replace(/\w+/g, ''),
-      top: el.style.top.replace(/\w+/g, '')
-    };
-
-    tty.emit('drag window', self, ev);
-    self.emit('drag', ev);
-  }
-
-  on(document, 'mousemove', move);
-  on(document, 'mouseup', up);
-};
-
-Window.prototype.resizing = function(ev) {
-  var self = this
-    , el = this.element
-    , term = this.focused;
-
-  if (this.minimize) delete this.minimize;
-
-  var resize = {
-    w: el.clientWidth,
-    h: el.clientHeight
-  };
-
-  el.style.overflow = 'hidden';
-  el.style.opacity = '0.70';
-  el.style.cursor = 'se-resize';
-  root.style.cursor = 'se-resize';
-  term.element.style.height = '100%';
-
-  function move(ev) {
-    var x, y;
-    y = el.offsetHeight - term.element.clientHeight;
-    x = ev.pageX - el.offsetLeft;
-    y = (ev.pageY - el.offsetTop) - y;
-    el.style.width = x + 'px';
-    el.style.height = y + 'px';
-  }
-
-  function up() {
-    var x, y;
-
-    x = el.clientWidth / resize.w;
-    y = el.clientHeight / resize.h;
-    x = (x * term.cols) | 0;
-    y = (y * term.rows) | 0;
-
-    self.resize(x, y);
-
-    el.style.width = '';
-    el.style.height = '';
-
-    el.style.overflow = '';
-    el.style.opacity = '';
-    el.style.cursor = '';
-    root.style.cursor = '';
-    term.element.style.height = '';
-
-    off(document, 'mousemove', move);
-    off(document, 'mouseup', up);
-  }
-
-  on(document, 'mousemove', move);
-  on(document, 'mouseup', up);
-};
-
 Window.prototype.maximize = function() {
   if (this.minimize) return this.minimize();
 
@@ -459,7 +309,6 @@ Window.prototype.maximize = function() {
     term.element.style.width = '';
     term.element.style.height = '';
     el.style.boxSizing = '';
-    self.grip.style.display = '';
     root.className = m.root;
 
     self.resize(m.cols, m.rows);
@@ -482,7 +331,6 @@ Window.prototype.maximize = function() {
   term.element.style.width = '100%';
   term.element.style.height = '100%';
   el.style.boxSizing = 'border-box';
-  this.grip.style.display = 'none';
   root.className = 'maximized';
 
   this.resize(x, y);
@@ -565,16 +413,12 @@ function Tab(win, socket) {
   });
 
   var button = document.createElement('div');
-  button.className = 'tab';
+  button.className = 'tab tty';
   button.innerHTML = '\u2022';
   win.bar.appendChild(button);
 
   on(button, 'click', function(ev) {
-    if (ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) {
-      self.destroy();
-    } else {
-      self.focus();
-    }
+    self.focus();
     return cancel(ev);
   });
 
@@ -623,7 +467,7 @@ Tab.prototype.handleTitle = function(title) {
 
   if (this.window.focused === this) {
     this.window.bar.title = title;
-    // this.setProcessName(this.process);
+    this.setProcessName(this.process);
   }
 };
 
@@ -653,7 +497,6 @@ Tab.prototype.focus = function() {
     win.element.appendChild(this.element);
     win.focused = this;
 
-    win.title.innerHTML = this.process;
     document.title = this.title || initialTitle;
     this.button.style.fontWeight = 'bold';
     this.button.style.color = '';
@@ -699,13 +542,8 @@ Tab.prototype._destroy = function() {
   }
 
   if (!win.tabs.length) {
-    win.destroy();
+    win.createTab();
   }
-
-  // if (!tty.windows.length) {
-  //   document.title = initialTitle;
-  //   if (h1) h1.innerHTML = initialTitle;
-  // }
 
   this.__destroy();
 };
@@ -855,13 +693,7 @@ Tab.prototype.setProcessName = function(name) {
 
   this.process = name;
   this.button.title = name;
-
-  if (this.window.focused === this) {
-    // if (this.title) {
-    //   name += ' (' + this.title + ')';
-    // }
-    this.window.title.innerHTML = name;
-  }
+  this.button.innerHTML = name;
 };
 
 /**
