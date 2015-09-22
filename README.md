@@ -1,4 +1,4 @@
-# tty.js
+# tty.js (forked as ljve-terminal)
 
 A terminal in your browser using node.js and socket.io. Based on Fabrice
 Bellard's vt100 for [jslinux](http://bellard.org/jslinux/).
