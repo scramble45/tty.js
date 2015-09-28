@@ -2,7 +2,7 @@
   "name": "ljve-terminal",
   "description": "A web terminal derived from tty.js",
   "author": "Marco Minetti",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "license": "MIT",
   "main": "./index.js",
   "preferGlobal": false,
