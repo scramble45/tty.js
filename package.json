@@ -2,21 +2,20 @@
   "name": "ljve-terminal",
   "description": "A web terminal derived from tty.js",
   "author": "Marco Minetti",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "license": "MIT",
   "main": "./index.js",
-  "bin": "./bin/ljve-terminal",
   "preferGlobal": false,
-  "repository": "git://github.com/marco.minetti/tty.js.git",
-  "homepage": "https://github.com/marco.minetti/tty.js",
-  "bugs": { "url": "https://github.com/marco.minetti/tty.js/issues" },
+  "repository": "https://github.com/marcominetti/tty.js.git",
+  "homepage": "https://github.com/marcominetti/tty.js",
+  "bugs": { "url": "https://github.com/marcominetti/tty.js/issues" },
   "keywords": ["tty", "terminal", "term", "xterm"],
   "tags": ["tty", "terminal", "term", "xterm"],
   "dependencies": {
-    "express": "3.4.4",
-    "socket.io": "0.9.16",
-    "pty.js": ">= 0.2.13",
-    "term.js": ">= 0.0.5"
+    "express": "^3.4.4",
+    "socket.io": "^1.3.6",
+    "pty.js-next": "*",
+    "term.js": "*"
   },
   "engines": { "node": ">= 0.8.0" }
 }
