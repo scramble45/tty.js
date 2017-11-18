@@ -13,7 +13,7 @@
   "tags": ["tty", "terminal", "term", "xterm"],
   "dependencies": {
     "express": "^3.4.4",
-    "socket.io": "^1.3.6",
+    "socket.io": "0.9.18",
     "pty.js-next": "*",
     "term.js": "*"
   },
